@@ -359,11 +359,16 @@ class ActionBase(with_metaclass(ABCMeta, object)):
             # Try to use file system acls to make the files readable for sudo'd
             # user
             if execute:
-                mode = 'rx'
+                chmod_mode = 'rx'
+                setfacl_mode = 'r-x'
             else:
-                mode = 'rX'
+                chmod_mode = 'rX'
+                ### Note: this form fails silently on freebsd.  We currently
+                # never call _fixup_perms2() with execute=False but if we
+                # start to we'll have to fix this.
+                setfacl_mode = 'r-X'
 
-            res = self._remote_set_user_facl(remote_paths, self._play_context.become_user, mode)
+            res = self._remote_set_user_facl(remote_paths, self._play_context.become_user, setfacl_mode)
             if res['rc'] != 0:
                 # File system acls failed; let's try to use chown next
                 # Set executable bit first as on some systems an
@@ -371,7 +376,7 @@ class ActionBase(with_metaclass(ABCMeta, object)):
                 if execute:
                     res = self._remote_chmod(remote_paths, 'u+x')
                     if res['rc'] != 0:
-                        raise AnsibleError('Failed to set file mode on remote temporary files (rc: {0}, err: {1})'.format(res['rc'], res['stderr']))
+                        raise AnsibleError('Failed to set file mode on remote temporary files (rc: {0}, err: {1})'.format(res['rc'], to_native(res['stderr'])))
 
                 res = self._remote_chown(remote_paths, self._play_context.become_user)
                 if res['rc'] != 0 and remote_user == 'root':
@@ -385,20 +390,20 @@ class ActionBase(with_metaclass(ABCMeta, object)):
                         display.warning('Using world-readable permissions for temporary files Ansible needs to create when becoming an unprivileged user.'
                                 ' This may be insecure. For information on securing this, see'
                                 ' https://docs.ansible.com/ansible/become.html#becoming-an-unprivileged-user')
-                        res = self._remote_chmod(remote_paths, 'a+%s' % mode)
+                        res = self._remote_chmod(remote_paths, 'a+%s' % chmod_mode)
                         if res['rc'] != 0:
-                            raise AnsibleError('Failed to set file mode on remote files (rc: {0}, err: {1})'.format(res['rc'], res['stderr']))
+                            raise AnsibleError('Failed to set file mode on remote files (rc: {0}, err: {1})'.format(res['rc'], to_native(res['stderr'])))
                     else:
                         raise AnsibleError('Failed to set permissions on the temporary files Ansible needs to create when becoming an unprivileged user'
                                 ' (rc: {0}, err: {1}). For information on working around this,'
-                                ' see https://docs.ansible.com/ansible/become.html#becoming-an-unprivileged-user'.format(res['rc'], res['stderr']))
+                                ' see https://docs.ansible.com/ansible/become.html#becoming-an-unprivileged-user'.format(res['rc'], to_native(res['stderr'])))
         elif execute:
             # Can't depend on the file being transferred with execute
             # permissions.  Only need user perms because no become was
             # used here
             res = self._remote_chmod(remote_paths, 'u+x')
             if res['rc'] != 0:
-                raise AnsibleError('Failed to set file mode on remote files (rc: {0}, err: {1})'.format(res['rc'], res['stderr']))
+                raise AnsibleError('Failed to set file mode on remote files (rc: {0}, err: {1})'.format(res['rc'], to_native(res['stderr'])))
 
         return remote_paths
 
@@ -688,6 +693,12 @@ class ActionBase(with_metaclass(ABCMeta, object)):
                                 remove_keys.add(fact_key)
                     except AttributeError:
                         pass
+
+                # remove some KNOWN keys
+                for hard in ['ansible_rsync_path']:
+                    if hard in fact_keys:
+                        remove_keys.add(hard)
+
                 # finally, we search for interpreter keys to remove
                 re_interp = re.compile('^ansible_.*_interpreter$')
                 for fact_key in fact_keys:

@@ -51,6 +51,17 @@ class Conditional:
         if not isinstance(value, list):
             setattr(self, name, [ value ])
 
+    def _get_attr_when(self):
+        '''
+        Override for the 'tags' getattr fetcher, used from Base.
+        '''
+        when = self._attributes['when']
+        if when is None:
+            when = []
+        if hasattr(self, '_get_parent_attribute'):
+            when = self._get_parent_attribute('when', extend=True, prepend=True)
+        return when
+
     def evaluate_conditional(self, templar, all_vars):
         '''
         Loops through the conditionals set on this object, returning
@@ -114,10 +125,10 @@ class Conditional:
             # variable was undefined. If we happened to be
             # looking for an undefined variable, return True,
             # otherwise fail
-            if "is undefined" in original:
+            if "is undefined" in original or "is not defined" in original or "not is defined" in original:
                 return True
-            elif "is defined" in original:
+            elif "is defined" in original or "is not undefined" in original or "not is undefined" in original:
                 return False
             else:
-                raise AnsibleError("error while evaluating conditional (%s): %s" % (original, e))
+                raise AnsibleUndefinedVariable("error while evaluating conditional (%s): %s" % (original, e))
 

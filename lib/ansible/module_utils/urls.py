@@ -182,6 +182,8 @@ if not HAS_SSLCONTEXT and HAS_SSL:
         del libssl
 
 
+LOADED_VERIFY_LOCATIONS = set()
+
 HAS_MATCH_HOSTNAME = True
 try:
     from ssl import match_hostname, CertificateError
@@ -510,9 +512,15 @@ def RedirectHandlerFactory(follow_redirects=None, validate_certs=True):
                 newheaders = dict((k,v) for k,v in req.headers.items()
                                   if k.lower() not in ("content-length", "content-type")
                                  )
+                try:
+                    # Python 2-3.3
+                    origin_req_host = req.get_origin_req_host()
+                except AttributeError:
+                    # Python 3.4+
+                    origin_req_host = req.origin_req_host
                 return urllib_request.Request(newurl,
                                headers=newheaders,
-                               origin_req_host=req.get_origin_req_host(),
+                               origin_req_host=origin_req_host,
                                unverifiable=True)
             else:
                 raise urllib_error.HTTPError(req.get_full_url(), code, msg, hdrs, fp)
@@ -590,6 +598,8 @@ class SSLValidationHandler(urllib_request.BaseHandler):
         paths_checked.append('/etc/ansible')
 
         tmp_fd, tmp_path = tempfile.mkstemp()
+        to_add_fd, to_add_path = tempfile.mkstemp()
+        to_add = False
 
         # Write the dummy ca cert if we are running on Mac OS X
         if system == 'Darwin':
@@ -608,13 +618,21 @@ class SSLValidationHandler(urllib_request.BaseHandler):
                     if os.path.isfile(full_path) and os.path.splitext(f)[1] in ('.crt','.pem'):
                         try:
                             cert_file = open(full_path, 'rb')
-                            os.write(tmp_fd, cert_file.read())
-                            os.write(tmp_fd, b('\n'))
+                            cert = cert_file.read()
                             cert_file.close()
+                            os.write(tmp_fd, cert)
+                            os.write(tmp_fd, b('\n'))
+                            if full_path not in LOADED_VERIFY_LOCATIONS:
+                                to_add = True
+                                os.write(to_add_fd, cert)
+                                os.write(to_add_fd, b('\n'))
+                                LOADED_VERIFY_LOCATIONS.add(full_path)
                         except (OSError, IOError):
                             pass
 
-        return (tmp_path, paths_checked)
+        if not to_add:
+            to_add_path = None
+        return (tmp_path, to_add_path, paths_checked)
 
     def validate_proxy_response(self, response, valid_codes=[200]):
         '''
@@ -643,17 +661,18 @@ class SSLValidationHandler(urllib_request.BaseHandler):
                     return False
         return True
 
-    def _make_context(self, tmp_ca_cert_path):
+    def _make_context(self, to_add_ca_cert_path):
         context = create_default_context()
-        context.load_verify_locations(tmp_ca_cert_path)
+        if to_add_ca_cert_path:
+            context.load_verify_locations(to_add_ca_cert_path)
         return context
 
     def http_request(self, req):
-        tmp_ca_cert_path, paths_checked = self.get_ca_certs()
+        tmp_ca_cert_path, to_add_ca_cert_path, paths_checked = self.get_ca_certs()
         https_proxy = os.environ.get('https_proxy')
         context = None
         if HAS_SSLCONTEXT:
-            context = self._make_context(tmp_ca_cert_path)
+            context = self._make_context(to_add_ca_cert_path)
 
         # Detect if 'no_proxy' environment variable is set and if our URL is included
         use_proxy = self.detect_no_proxy(req.get_full_url())
@@ -716,6 +735,14 @@ class SSLValidationHandler(urllib_request.BaseHandler):
             # cleanup the temp file created, don't worry
             # if it fails for some reason
             os.remove(tmp_ca_cert_path)
+        except:
+            pass
+
+        try:
+            # cleanup the temp file created, don't worry
+            # if it fails for some reason
+            if to_add_ca_cert_path:
+                os.remove(to_add_ca_cert_path)
         except:
             pass
 
@@ -841,6 +868,7 @@ def open_url(url, data=None, headers=None, method=None, use_proxy=True,
     opener = urllib_request.build_opener(*handlers)
     urllib_request.install_opener(opener)
 
+    data = to_bytes(data, nonstring='passthru')
     if method:
         if method.upper() not in ('OPTIONS','GET','HEAD','POST','PUT','DELETE','TRACE','CONNECT','PATCH'):
             raise ConnectionError('invalid HTTP request method; %s' % method.upper())
@@ -853,13 +881,14 @@ def open_url(url, data=None, headers=None, method=None, use_proxy=True,
     if http_agent:
         request.add_header('User-agent', http_agent)
 
-    # if we're ok with getting a 304, set the timestamp in the
-    # header, otherwise make sure we don't get a cached copy
-    if last_mod_time and not force:
+    # Cache control
+    # Either we directly force a cache refresh
+    if force:
+        request.add_header('cache-control', 'no-cache')
+    # or we do it if the original is more recent than our copy
+    elif last_mod_time:
         tstamp = last_mod_time.strftime('%a, %d %b %Y %H:%M:%S +0000')
         request.add_header('If-Modified-Since', tstamp)
-    else:
-        request.add_header('cache-control', 'no-cache')
 
     # user defined headers now, which may override things we've set above
     if headers:
