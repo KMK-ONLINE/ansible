@@ -1,6 +1,6 @@
 [submodule "lib/ansible/modules/core"]
 	path = lib/ansible/modules/core
-	url = git@github.com:KMK-ONLINE/ansible-modules-core
+	url = https://github.com/KMK-ONLINE/ansible-modules-core
 	branch = 2.2.x
 [submodule "lib/ansible/modules/extras"]
 	path = lib/ansible/modules/extras
