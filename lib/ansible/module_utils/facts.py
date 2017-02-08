@@ -336,7 +336,7 @@ class Facts(object):
             proc_1 = to_native(proc_1)
             proc_1 = proc_1.strip()
 
-        if proc_1 == 'init' or proc_1.endswith('sh'):
+        if proc_1 is not None and (proc_1 == 'init' or proc_1.endswith('sh')):
             # many systems return init, so this cannot be trusted, if it ends in 'sh' it probalby is a shell in a container
             proc_1 = None
 
@@ -3342,21 +3342,22 @@ class SunOSVirtual(Virtual):
 
         else:
             smbios = self.module.get_bin_path('smbios')
-            rc, out, err = self.module.run_command(smbios)
-            if rc == 0:
-                for line in out.split('\n'):
-                    if 'VMware' in line:
-                        self.facts['virtualization_type'] = 'vmware'
-                        self.facts['virtualization_role'] = 'guest'
-                    elif 'Parallels' in line:
-                        self.facts['virtualization_type'] = 'parallels'
-                        self.facts['virtualization_role'] = 'guest'
-                    elif 'VirtualBox' in line:
-                        self.facts['virtualization_type'] = 'virtualbox'
-                        self.facts['virtualization_role'] = 'guest'
-                    elif 'HVM domU' in line:
-                        self.facts['virtualization_type'] = 'xen'
-                        self.facts['virtualization_role'] = 'guest'
+            if smbios:
+                rc, out, err = self.module.run_command(smbios)
+                if rc == 0:
+                    for line in out.split('\n'):
+                        if 'VMware' in line:
+                            self.facts['virtualization_type'] = 'vmware'
+                            self.facts['virtualization_role'] = 'guest'
+                        elif 'Parallels' in line:
+                            self.facts['virtualization_type'] = 'parallels'
+                            self.facts['virtualization_role'] = 'guest'
+                        elif 'VirtualBox' in line:
+                            self.facts['virtualization_type'] = 'virtualbox'
+                            self.facts['virtualization_role'] = 'guest'
+                        elif 'HVM domU' in line:
+                            self.facts['virtualization_type'] = 'xen'
+                            self.facts['virtualization_role'] = 'guest'
 
 class Ohai(Facts):
     """

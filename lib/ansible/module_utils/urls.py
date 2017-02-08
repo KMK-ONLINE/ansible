@@ -115,7 +115,7 @@ import ansible.module_utils.six.moves.urllib.request as urllib_request
 import ansible.module_utils.six.moves.urllib.error as urllib_error
 from ansible.module_utils.basic import get_distribution, get_exception
 from ansible.module_utils.six import b
-from ansible.module_utils._text import to_bytes
+from ansible.module_utils._text import to_bytes, to_text
 
 try:
     # python3
@@ -309,7 +309,7 @@ if not HAS_MATCH_HOSTNAME:
 # ca cert, regardless of validity, for Python on Mac OS to use the
 # keychain functionality in OpenSSL for validating SSL certificates.
 # See: http://mercurial.selenic.com/wiki/CACertificates#Mac_OS_X_10.6_and_higher
-DUMMY_CA_CERT = """-----BEGIN CERTIFICATE-----
+b_DUMMY_CA_CERT = b("""-----BEGIN CERTIFICATE-----
 MIICvDCCAiWgAwIBAgIJAO8E12S7/qEpMA0GCSqGSIb3DQEBBQUAMEkxCzAJBgNV
 BAYTAlVTMRcwFQYDVQQIEw5Ob3J0aCBDYXJvbGluYTEPMA0GA1UEBxMGRHVyaGFt
 MRAwDgYDVQQKEwdBbnNpYmxlMB4XDTE0MDMxODIyMDAyMloXDTI0MDMxNTIyMDAy
@@ -326,7 +326,7 @@ MUB80IR6knq9K/tY+hvPsZer6eFMzO3JGkRFBh2kn6JdMDnhYGX7AXVHGflrwNQH
 qFy+aenWXsC0ZvrikFxbQnX8GVtDADtVznxOi7XzFw7JOxdsVrpXgSN0eh0aMzvV
 zKPZsZ2miVGclicJHzm5q080b1p/sZtuKIEZk6vZqEg=
 -----END CERTIFICATE-----
-"""
+""")
 
 #
 # Exceptions
@@ -576,21 +576,21 @@ class SSLValidationHandler(urllib_request.BaseHandler):
         ca_certs = []
         paths_checked = []
 
-        system = platform.system()
+        system = to_text(platform.system(), errors='surrogate_or_strict')
         # build a list of paths to check for .crt/.pem files
         # based on the platform type
         paths_checked.append('/etc/ssl/certs')
-        if system == 'Linux':
+        if system == u'Linux':
             paths_checked.append('/etc/pki/ca-trust/extracted/pem')
             paths_checked.append('/etc/pki/tls/certs')
             paths_checked.append('/usr/share/ca-certificates/cacert.org')
-        elif system == 'FreeBSD':
+        elif system == u'FreeBSD':
             paths_checked.append('/usr/local/share/certs')
-        elif system == 'OpenBSD':
+        elif system == u'OpenBSD':
             paths_checked.append('/etc/ssl')
-        elif system == 'NetBSD':
+        elif system == u'NetBSD':
             ca_certs.append('/etc/openssl/certs')
-        elif system == 'SunOS':
+        elif system == u'SunOS':
             paths_checked.append('/opt/local/etc/openssl/certs')
 
         # fall back to a user-deployed cert in a standard
@@ -602,8 +602,8 @@ class SSLValidationHandler(urllib_request.BaseHandler):
         to_add = False
 
         # Write the dummy ca cert if we are running on Mac OS X
-        if system == 'Darwin':
-            os.write(tmp_fd, DUMMY_CA_CERT)
+        if system == u'Darwin':
+            os.write(tmp_fd, b_DUMMY_CA_CERT)
             # Default Homebrew path for OpenSSL certs
             paths_checked.append('/usr/local/etc/openssl')
 
@@ -825,9 +825,11 @@ def open_url(url, data=None, headers=None, method=None, use_proxy=True,
             # use this username/password combination for  urls
             # for which `theurl` is a super-url
             authhandler = urllib_request.HTTPBasicAuthHandler(passman)
+            digest_authhandler = urllib_request.HTTPDigestAuthHandler(passman)
 
             # create the AuthHandler
             handlers.append(authhandler)
+            handlers.append(digest_authhandler)
 
         elif username and force_basic_auth:
             headers["Authorization"] = basic_auth_header(username, password)

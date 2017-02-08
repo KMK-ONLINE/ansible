@@ -30,9 +30,8 @@ import tempfile
 import time
 from abc import ABCMeta, abstractmethod
 
-from ansible.compat.six import binary_type, text_type, iteritems, with_metaclass
-
 from ansible import constants as C
+from ansible.compat.six import binary_type, string_types, text_type, iteritems, with_metaclass
 from ansible.errors import AnsibleError, AnsibleConnectionFailure
 from ansible.executor.module_common import modify_module
 from ansible.module_utils._text import to_bytes, to_native, to_text
@@ -40,6 +39,7 @@ from ansible.module_utils.json_utils import _filter_non_json_lines
 from ansible.parsing.utils.jsonify import jsonify
 from ansible.playbook.play_context import MAGIC_VARIABLE_MAPPING
 from ansible.release import __version__
+from ansible.vars.unsafe_proxy import wrap_var
 
 
 try:
@@ -218,7 +218,12 @@ class ActionBase(with_metaclass(ABCMeta, object)):
 
         tmp_mode = 0o700
 
-        cmd = self._connection._shell.mkdtemp(basefile, use_system_tmp, tmp_mode)
+        if use_system_tmp:
+            tmpdir = None
+        else:
+            tmpdir =  self._remote_expand_user(C.DEFAULT_REMOTE_TMP, sudoable=False)
+
+        cmd = self._connection._shell.mkdtemp(basefile, use_system_tmp, tmp_mode, tmpdir)
         result = self._low_level_execute_command(cmd, sudoable=False)
 
         # error handling on this seems a little aggressive?
@@ -454,6 +459,8 @@ class ActionBase(with_metaclass(ABCMeta, object)):
         # happens sometimes when it is a dir and not on bsd
         if 'checksum' not in mystat['stat']:
             mystat['stat']['checksum'] = ''
+        elif not isinstance(mystat['stat']['checksum'], string_types):
+            raise AnsibleError("Invalid checksum returned by stat: expected a string type but got %s" % type(mystat['stat']['checksum']))
 
         return mystat['stat']
 
@@ -483,7 +490,7 @@ class ActionBase(with_metaclass(ABCMeta, object)):
         finally:
             return x
 
-    def _remote_expand_user(self, path):
+    def _remote_expand_user(self, path, sudoable=True):
         ''' takes a remote path and performs tilde expansion on the remote host '''
         if not path.startswith('~'):  # FIXME: Windows paths may start with "~ instead of just ~
             return path
@@ -491,13 +498,11 @@ class ActionBase(with_metaclass(ABCMeta, object)):
         # FIXME: Can't use os.path.sep for Windows paths.
         split_path = path.split(os.path.sep, 1)
         expand_path = split_path[0]
-        if expand_path == '~':
-            if self._play_context.become and self._play_context.become_user:
-                expand_path = '~%s' % self._play_context.become_user
+        if sudoable and expand_path == '~' and self._play_context.become and self._play_context.become_user:
+            expand_path = '~%s' % self._play_context.become_user
 
         cmd = self._connection._shell.expand_user(expand_path)
         data = self._low_level_execute_command(cmd, sudoable=False)
-        #initial_fragment = utils.last_non_blank_line(data['stdout'])
         initial_fragment = data['stdout'].strip().splitlines()[-1]
 
         if not initial_fragment:
@@ -669,6 +674,39 @@ class ActionBase(with_metaclass(ABCMeta, object)):
         display.debug("done with _execute_module (%s, %s)" % (module_name, module_args))
         return data
 
+    def _clean_returned_data(self, data):
+        remove_keys = set()
+        fact_keys = set(data.keys())
+        # first we add all of our magic variable names to the set of
+        # keys we want to remove from facts
+        for magic_var in MAGIC_VARIABLE_MAPPING:
+            remove_keys.update(fact_keys.intersection(MAGIC_VARIABLE_MAPPING[magic_var]))
+        # next we remove any connection plugin specific vars
+        for conn_path in self._shared_loader_obj.connection_loader.all(path_only=True):
+            try:
+                conn_name = os.path.splitext(os.path.basename(conn_path))[0]
+                re_key = re.compile('^ansible_%s_' % conn_name)
+                for fact_key in fact_keys:
+                    if re_key.match(fact_key):
+                        remove_keys.add(fact_key)
+            except AttributeError:
+                pass
+
+        # remove some KNOWN keys
+        for hard in ['ansible_rsync_path', 'ansible_playbook_python']:
+            if hard in fact_keys:
+                remove_keys.add(hard)
+
+        # finally, we search for interpreter keys to remove
+        re_interp = re.compile('^ansible_.*_interpreter$')
+        for fact_key in fact_keys:
+            if re_interp.match(fact_key):
+                remove_keys.add(fact_key)
+        # then we remove them (except for ssh host keys)
+        for r_key in remove_keys:
+            if not r_key.startswith('ansible_ssh_host_key_'):
+                del data[r_key]
+
     def _parse_returned_data(self, res):
         try:
             filtered_output, warnings = _filter_non_json_lines(res.get('stdout', u''))
@@ -677,37 +715,11 @@ class ActionBase(with_metaclass(ABCMeta, object)):
             data = json.loads(filtered_output)
             data['_ansible_parsed'] = True
             if 'ansible_facts' in data and isinstance(data['ansible_facts'], dict):
-                remove_keys = set()
-                fact_keys = set(data['ansible_facts'].keys())
-                # first we add all of our magic variable names to the set of
-                # keys we want to remove from facts
-                for magic_var in MAGIC_VARIABLE_MAPPING:
-                    remove_keys.update(fact_keys.intersection(MAGIC_VARIABLE_MAPPING[magic_var]))
-                # next we remove any connection plugin specific vars
-                for conn_path in self._shared_loader_obj.connection_loader.all(path_only=True):
-                    try:
-                        conn_name = os.path.splitext(os.path.basename(conn_path))[0]
-                        re_key = re.compile('^ansible_%s_' % conn_name)
-                        for fact_key in fact_keys:
-                            if re_key.match(fact_key):
-                                remove_keys.add(fact_key)
-                    except AttributeError:
-                        pass
-
-                # remove some KNOWN keys
-                for hard in ['ansible_rsync_path']:
-                    if hard in fact_keys:
-                        remove_keys.add(hard)
-
-                # finally, we search for interpreter keys to remove
-                re_interp = re.compile('^ansible_.*_interpreter$')
-                for fact_key in fact_keys:
-                    if re_interp.match(fact_key):
-                        remove_keys.add(fact_key)
-                # then we remove them (except for ssh host keys)
-                for r_key in remove_keys:
-                    if not r_key.startswith('ansible_ssh_host_key_'):
-                        del data['ansible_facts'][r_key]
+                self._clean_returned_data(data['ansible_facts'])
+                data['ansible_facts'] = wrap_var(data['ansible_facts'])
+            if 'add_host' in data and isinstance(data['add_host'].get('host_vars', None), dict):
+                self._clean_returned_data(data['add_host']['host_vars'])
+                data['add_host'] = wrap_var(data['add_host'])
         except ValueError:
             # not valid json, lets try to capture error
             data = dict(failed=True, _ansible_parsed=False)
