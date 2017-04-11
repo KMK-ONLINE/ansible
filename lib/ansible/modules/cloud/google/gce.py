@@ -120,6 +120,11 @@ options:
     required: false
     default: null
     version_added: "2.2"
+  private_ip:
+    description:
+      - private ip address for the instance, auto-assigned if left blank
+    required: false
+    version_added: "2.2"
   persistent_boot_disk:
     description:
       - if set, create the instance with a persistent boot disk
@@ -417,6 +422,7 @@ def create_instances(module, gce, instance_names, number, lc_zone):
     metadata = module.params.get('metadata')
     network = module.params.get('network')
     subnetwork = module.params.get('subnetwork')
+    private_ip = module.params.get('private_ip')
     persistent_boot_disk = module.params.get('persistent_boot_disk')
     disks = module.params.get('disks')
     tags = module.params.get('tags')
@@ -514,6 +520,8 @@ def create_instances(module, gce, instance_names, number, lc_zone):
         gce_args['ex_preemptible'] = preemptible
     if subnetwork is not None:
         gce_args['ex_subnetwork'] = subnetwork
+    if private_ip is not None:
+        gce_args['ex_private_ip'] = private_ip
 
     if isinstance(instance_names, str) and not number:
         instance_names = [instance_names]
@@ -658,6 +666,7 @@ def main():
             num_instances=dict(type='int'),
             network=dict(default='default'),
             subnetwork=dict(),
+            private_ip=dict(),
             persistent_boot_disk=dict(type='bool', default=False),
             disks=dict(type='list'),
             state=dict(choices=['active', 'present', 'absent', 'deleted',
@@ -693,6 +702,7 @@ def main():
     name = module.params.get('name')
     number = module.params.get('num_instances')
     subnetwork = module.params.get('subnetwork')
+    private_ip = module.params.get('private_ip')
     state = module.params.get('state')
     zone = module.params.get('zone')
     preemptible = module.params.get('preemptible')
@@ -708,6 +718,13 @@ def main():
     if not inames:
         module.fail_json(msg='Must specify a "name" or "instance_names"',
                          changed=False)
+
+    if private_ip and (
+        (isinstance(inames, list) and len(inames) > 1)
+        or (isinstance(inames, str) and number)
+    ):
+        module.fail_json(msg='Can only set "private_ip" for single instance')
+
     if not zone:
         module.fail_json(msg='Must specify a "zone"', changed=False)
 
