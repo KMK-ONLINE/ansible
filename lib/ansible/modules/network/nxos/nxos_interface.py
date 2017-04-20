@@ -142,6 +142,7 @@ proposed:
     sample: {"admin_state": "down"}
 existing:
     description: k/v pairs of existing switchport
+    returned: always
     type: dict
     sample:  {"admin_state": "up", "description": "None",
               "interface": "port-channel101", "mode": "layer2",
@@ -149,7 +150,7 @@ existing:
 end_state:
     description: k/v pairs of switchport after module execution
     returned: always
-    type: dict or null
+    type: dict
     sample:  {"admin_state": "down", "description": "None",
               "interface": "port-channel101", "mode": "layer2",
               "type": "portchannel", "ip_forward": "enable"}
@@ -168,7 +169,6 @@ changed:
 from ansible.module_utils.nxos import get_config, load_config, run_commands
 from ansible.module_utils.nxos import nxos_argument_spec, check_args
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.netcfg import CustomNetworkConfig
 
 
 

@@ -98,6 +98,7 @@ proposed:
             "vrf": "ntc"}
 existing:
     description: k/v pairs of existing vrf
+    returned: always
     type: dict
     sample: {"admin_state": "Up", "description": "Old test",
             "vrf": "old_ntc"}
@@ -123,7 +124,6 @@ import re
 from ansible.module_utils.nxos import get_config, load_config, run_commands
 from ansible.module_utils.nxos import nxos_argument_spec, check_args
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.netcfg import CustomNetworkConfig
 
 def execute_show_command(command, module, command_type='cli_show'):
     transport = module.params['provider']['transport']

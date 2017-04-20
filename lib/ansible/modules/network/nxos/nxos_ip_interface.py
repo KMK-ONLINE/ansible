@@ -89,6 +89,7 @@ proposed:
     sample: {"addr": "20.20.20.20", "interface": "ethernet1/32", "mask": "24"}
 existing:
     description: k/v pairs of existing IP attributes on the interface
+    returned: always
     type: dict
     sample: {"addresses": [{"addr": "11.11.11.11", "mask": 17}],
             "interface": "ethernet1/32", "prefix": "11.11.0.0",
@@ -115,7 +116,6 @@ changed:
 from ansible.module_utils.nxos import get_config, load_config, run_commands
 from ansible.module_utils.nxos import nxos_argument_spec, check_args
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.netcfg import CustomNetworkConfig
 
 import re
 
