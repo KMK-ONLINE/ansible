@@ -20,7 +20,7 @@ with open('requirements.txt') as requirements_file:
 
 setup(
     name='ansible',
-    version=__version__ + '+20170425',
+    version=__version__ + '+20170425.1',
     description='Radically simple IT automation',
     author=__author__,
     author_email='info@ansible.com',
