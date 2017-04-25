@@ -200,9 +200,10 @@ def _get_gcp_credentials(module, require_valid_json=True, check_libcloud=False):
                 'credentials file (%s)' % (project_id, credentials_file)))
 
     # ensure the credentials file is found and is in the proper format.
-    _validate_credentials_file(module, credentials_file,
-                               require_valid_json=require_valid_json,
-                               check_libcloud=check_libcloud)
+    if credentials_file.endswith('.json'):
+        _validate_credentials_file(module, credentials_file,
+                                   require_valid_json=require_valid_json,
+                                   check_libcloud=check_libcloud)
 
     return {'service_account_email': service_account_email,
             'credentials_file': credentials_file,
