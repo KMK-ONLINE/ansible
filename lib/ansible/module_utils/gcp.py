@@ -215,7 +215,7 @@ def _get_gcp_credentials(module, require_valid_json=True, check_libcloud=False):
             service_account_email = ''
 
     # ensure the credentials file is found and is in the proper format.
-    if credentials_file:
+    if credentials_file.endswith('.json'):
         _validate_credentials_file(module, credentials_file,
                                    require_valid_json=require_valid_json,
                                    check_libcloud=check_libcloud)
