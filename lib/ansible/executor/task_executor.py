@@ -32,6 +32,7 @@ from ansible.executor.task_result import TaskResult
 from ansible.module_utils._text import to_text
 from ansible.playbook.conditional import Conditional
 from ansible.playbook.task import Task
+from ansible.plugins.connection import ConnectionBase
 from ansible.template import Templar
 from ansible.utils.encrypt import key_for_hostname
 from ansible.utils.listify import listify_lookup_plugin_terms
@@ -471,16 +472,17 @@ class TaskExecutor:
         if not self._connection or not getattr(self._connection, 'connected', False) or self._play_context.remote_addr != self._connection._play_context.remote_addr:
             self._connection = self._get_connection(variables=variables, templar=templar)
             hostvars = variables.get('hostvars', None)
-            if hostvars:
+            # only template the vars if the connection actually implements set_host_overrides
+            # NB: this is expensive, and should be removed once connection-specific vars are being handled by play_context
+            sho_impl = getattr(type(self._connection), 'set_host_overrides', None)
+            if hostvars and sho_impl and sho_impl != ConnectionBase.set_host_overrides:
                 try:
-                    target_hostvars = hostvars.raw_get(self._host.name)
+                    target_hostvars = hostvars.get(self._host.name)
                 except:
                     # FIXME: this should catch the j2undefined error here
                     #        specifically instead of all exceptions
                     target_hostvars = dict()
-            else:
-                target_hostvars = dict()
-            self._connection.set_host_overrides(host=self._host, hostvars=target_hostvars)
+                self._connection.set_host_overrides(host=self._host, hostvars=target_hostvars)
         else:
             # if connection is reused, its _play_context is no longer valid and needs
             # to be replaced with the one templated above, in case other data changed
@@ -532,7 +534,7 @@ class TaskExecutor:
                 vars_copy[self._task.register] = wrap_var(result.copy())
 
             if self._task.async > 0:
-                if self._task.poll > 0 and not result.get('skipped'):
+                if self._task.poll > 0 and not result.get('skipped') and not result.get('failed'):
                     result = self._poll_async_result(result=result, templar=templar, task_vars=vars_copy)
                     #FIXME callback 'v2_runner_on_async_poll' here
 
