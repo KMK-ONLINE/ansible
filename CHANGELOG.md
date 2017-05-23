@@ -3,8 +3,13 @@ Ansible Changes By Release
 
 ## 2.3.1 "Ramble On" - TBD
 
+
 ### Bugfixes
 * Fix default value of fetch module's validate_checksum to be True
+* Added fix for "meta: refresh_connection" not working with default 'smart' connection.
+* Fix template so that the --diff command line option works when the destination is a directory
+* Fix python3 bugs in pam_limits
+* Fix unbound error when using module deprecation as a single string
 
 ## 2.3 "Ramble On" - 2017-04-12
 

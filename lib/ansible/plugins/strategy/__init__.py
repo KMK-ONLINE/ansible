@@ -19,6 +19,7 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+import os
 import threading
 import time
 
@@ -237,11 +238,13 @@ class StrategyBase:
         return host_list
 
     def get_delegated_hosts(self, result, task):
-
-        host_name = task.delegate_to
-        actual_host = self._inventory.get_host(host_name)
-        if actual_host is None:
-            actual_host = Host(name=host_name)
+        host_name = result.get('_ansible_delegated_vars', {}).get('ansible_host', None)
+        if host_name is not None:
+            actual_host = self._inventory.get_host(host_name)
+            if actual_host is None:
+                actual_host = Host(name=host_name)
+        else:
+            actual_host = Host(name=task.delegate_to)
 
         return [actual_host]
 
@@ -328,8 +331,7 @@ class StrategyBase:
             found_task = iterator.get_original_task(original_host, task_result._task)
             original_task = found_task.copy(exclude_parent=True, exclude_tasks=True)
             original_task._parent = found_task._parent
-            for (attr, val) in iteritems(task_result._task_fields):
-                setattr(original_task, attr, val)
+            original_task.from_attrs(task_result._task_fields)
 
             task_result._host = original_host
             task_result._task = original_task
@@ -898,9 +900,12 @@ class StrategyBase:
                         iterator._host_states[host.name].run_state = iterator.ITERATING_COMPLETE
                 msg="ending play"
         elif meta_action == 'reset_connection':
-            connection = connection_loader.get(play_context.connection, play_context, '/dev/null')
-            connection.reset()
-            msg= 'reset connection'
+            connection = connection_loader.get(play_context.connection, play_context, os.devnull)
+            if connection:
+                connection.reset()
+                msg= 'reset connection'
+            else:
+                msg= 'no connection, nothing to reset'
         else:
             raise AnsibleError("invalid meta action requested: %s" % meta_action, obj=task._ds)
 
