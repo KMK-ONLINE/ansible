@@ -413,6 +413,10 @@ def main():
     try:
         if downloader.download(artifact, dest):
             module.exit_json(state=state, dest=dest, group_id=group_id, artifact_id=artifact_id, version=version, classifier=classifier, extension=extension, repository_url=repository_url, changed=True)
+            if downloader.verify_md5(dest, downloader.find_uri_for_artifact(artifact) + '.md5'):
+                sys.stdout.write('\n Checksum of downloaded artifact is valid')
+            else:
+                module.fail_json(msg="Checksum of downloaded artifact is not valid")
         else:
             module.fail_json(msg="Unable to download the artifact")
     except ValueError as e:
