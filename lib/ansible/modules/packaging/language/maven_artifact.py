@@ -299,11 +299,11 @@ class MavenDownloader:
                 # f.write(response.read())
                 self._write_chunks(response, f, report_hook=self.chunk_report)
                 f.close()
-                return True
+                return url
             else:
-                return False
+                return None
         else:
-            return True
+            return url
 
     def chunk_report(self, bytes_so_far, chunk_size, total_size):
         percent = float(bytes_so_far) / total_size
@@ -411,8 +411,12 @@ def main():
         module.exit_json(dest=dest, state=state, changed=False)
 
     try:
-        if downloader.download(artifact, dest):
-            module.exit_json(state=state, dest=dest, group_id=group_id, artifact_id=artifact_id, version=version, classifier=classifier, extension=extension, repository_url=repository_url, changed=True)
+        if downloader.download(artifact, dest) != None:
+            artifact_url = downloader.download(artifact, dest)
+            if downloader.verify_md5(dest, artifact_url + '.md5'):
+                module.exit_json(state=state, dest=dest, group_id=group_id, artifact_id=artifact_id, version=version, classifier=classifier, extension=extension, repository_url=repository_url, changed=True)
+            else:
+                module.fail_json(msg="Checksum of downloaded artifact is not valid")
         else:
             module.fail_json(msg="Unable to download the artifact")
     except ValueError as e:
