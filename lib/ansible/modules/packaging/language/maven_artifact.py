@@ -292,17 +292,26 @@ class MavenDownloader:
                                 artifact.classifier, artifact.extension)
 
         url = self.find_uri_for_artifact(artifact)
-        if not self.verify_md5(filename, url + ".md5"):
+        #verifies the checksum of already existing artifact with remote artifact
+        md5_value = self.verify_md5(filename, url + ".md5")
+        if not md5_value:
             response = self._request(url, "Failed to download artifact " + str(artifact), lambda r: r)
             if response:
                 f = open(filename, 'w')
                 # f.write(response.read())
                 self._write_chunks(response, f, report_hook=self.chunk_report)
                 f.close()
-                return url
+
+                #read and verify the md5 of newly downloaded artifact with remote artifact 
+                match_md5 = self.verify_md5(filename, url + ".md5")
+                if match_md5:
+                    return url
+                else:
+                    raise ValueError("Failed to validate checksum of downloaded artifact")
             else:
                 return None
         else:
+            #returns url in case the md5 of local artifact matches with remote artifact to avoid unwanted download 
             return url
 
     def chunk_report(self, bytes_so_far, chunk_size, total_size):
@@ -388,41 +397,19 @@ def main():
     repository_password = module.params["password"]
     state = module.params["state"]
     dest = module.params["dest"]
-
+    
     #downloader = MavenDownloader(module, repository_url, repository_username, repository_password)
-    downloader = MavenDownloader(module, repository_url)
-
+    downloader = MavenDownloader(module, repository_url) 
     try:
         artifact = Artifact(group_id, artifact_id, version, classifier, extension)
-    except ValueError as e:
-        module.fail_json(msg=e.args[0])
-
-    prev_state = "absent"
-    if os.path.isdir(dest):
-        dest = posixpath.join(dest, artifact_id + "-" + version + "." + extension)
-    if os.path.lexists(dest) and downloader.verify_md5(dest, downloader.find_uri_for_artifact(artifact) + '.md5'):
-        prev_state = "present"
-    else:
-        path = os.path.dirname(dest)
-        if not os.path.exists(path):
-            os.makedirs(path)
-
-    if prev_state == "present":
-        module.exit_json(dest=dest, state=state, changed=False)
-
-    try:
-        if downloader.download(artifact, dest) != None:
-            artifact_url = downloader.download(artifact, dest)
-            if downloader.verify_md5(dest, artifact_url + '.md5'):
-                module.exit_json(state=state, dest=dest, group_id=group_id, artifact_id=artifact_id, version=version, classifier=classifier, extension=extension, repository_url=repository_url, changed=True)
-            else:
-                module.fail_json(msg="Checksum of downloaded artifact is not valid")
+        artifact_url = downloader.download(artifact, dest)
+        if artifact_url:
+            module.exit_json(state=state, dest=dest, group_id=group_id, artifact_id=artifact_id, version=version, classifier=classifier, extension=extension, repository_url=repository_url, changed=True)
         else:
-            module.fail_json(msg="Unable to download the artifact")
+            module.fail_json(msg="Unable to download the artifact")     
     except ValueError as e:
         module.fail_json(msg=e.args[0])
 
-
-
+    
 if __name__ == '__main__':
     main()
