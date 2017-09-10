@@ -82,7 +82,6 @@ class IncludeRole(Task):
             dep_chain = []
         else:
             dep_chain = list(self._parent_role._parents)
-            dep_chain.extend(self._parent_role.get_all_dependencies())
             dep_chain.append(self._parent_role)
 
         blocks = actual_role.compile(play=myplay, dep_chain=dep_chain)
@@ -90,9 +89,9 @@ class IncludeRole(Task):
             b._parent = self
 
         # updated available handlers in play
-        myplay.handlers = myplay.handlers + actual_role.get_handler_blocks(play=myplay)
-
-        return blocks
+        handlers = actual_role.get_handler_blocks(play=myplay)
+        myplay.handlers = myplay.handlers + handlers
+        return blocks, handlers
 
     @staticmethod
     def load(data, block=None, role=None, task_include=None, variable_manager=None, loader=None):
@@ -117,7 +116,7 @@ class IncludeRole(Task):
             if option in ir.args:
                 setattr(ir, option, ir.args.get(option))
 
-        return ir.load_data(data, variable_manager=variable_manager, loader=loader)
+        return ir
 
     def copy(self, exclude_parent=False, exclude_tasks=False):
 

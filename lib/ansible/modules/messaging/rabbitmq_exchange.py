@@ -115,9 +115,17 @@ EXAMPLES = '''
     vhost: myVhost
 '''
 
-import requests
-import urllib
 import json
+
+try:
+    import requests
+    HAS_REQUESTS = True
+except ImportError:
+    HAS_REQUESTS = False
+
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.six.moves.urllib import parse as urllib_parse
+
 
 def main():
     module = AnsibleModule(
@@ -141,9 +149,12 @@ def main():
     url = "http://%s:%s/api/exchanges/%s/%s" % (
         module.params['login_host'],
         module.params['login_port'],
-        urllib.quote(module.params['vhost'],''),
-        urllib.quote(module.params['name'],'')
+        urllib_parse.quote(module.params['vhost'],''),
+        urllib_parse.quote(module.params['name'],'')
     )
+
+    if not HAS_REQUESTS:
+        module.fail_json(msg="requests library is required for this module. To install, use `pip install requests`")
 
     # Check if exchange already exists
     r = requests.get( url, auth=(module.params['login_user'],module.params['login_password']))
@@ -223,8 +234,6 @@ def main():
             name = module.params['name']
         )
 
-# import module snippets
-from ansible.module_utils.basic import *
 
 if __name__ == '__main__':
     main()

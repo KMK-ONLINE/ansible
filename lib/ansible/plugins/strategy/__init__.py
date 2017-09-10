@@ -238,7 +238,7 @@ class StrategyBase:
         return host_list
 
     def get_delegated_hosts(self, result, task):
-        host_name = result.get('_ansible_delegated_vars', {}).get('ansible_host', None)
+        host_name = result.get('_ansible_delegated_vars', {}).get('ansible_delegated_host', None)
         if host_name is not None:
             actual_host = self._inventory.get_host(host_name)
             if actual_host is None:
@@ -443,6 +443,8 @@ class StrategyBase:
                                 target_handler = search_handler_blocks_by_name(handler_name, iterator._play.handlers)
                                 if target_handler is not None:
                                     found = True
+                                    if target_handler._uuid not in self._notified_handlers:
+                                        self._notified_handlers[target_handler._uuid] = []
                                     if original_host not in self._notified_handlers[target_handler._uuid]:
                                         self._notified_handlers[target_handler._uuid].append(original_host)
                                         # FIXME: should this be a callback?
@@ -775,6 +777,8 @@ class StrategyBase:
         host_results = []
         for host in notified_hosts:
             if not handler.has_triggered(host) and (not iterator.is_failed(host) or play_context.force_handlers):
+                if handler._uuid not in iterator._task_uuid_cache:
+                    iterator._task_uuid_cache[handler._uuid] = handler
                 task_vars = self._variable_manager.get_vars(loader=self._loader, play=iterator._play, host=host, task=handler)
                 self.add_tqm_variables(task_vars, play=iterator._play)
                 self._queue_task(host, handler, task_vars, play_context)
@@ -880,7 +884,8 @@ class StrategyBase:
         elif meta_action == 'clear_facts':
             if _evaluate_conditional(target_host):
                 for host in self._inventory.get_hosts(iterator._play.hosts):
-                    self._variable_manager.clear_facts(host)
+                    hostname = host.get_name()
+                    self._variable_manager.clear_facts(hostname)
                 msg = "facts cleared"
             else:
                 skipped = True
