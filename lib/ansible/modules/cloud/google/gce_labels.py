@@ -50,7 +50,7 @@ author:
 options:
   labels:
     description:
-       - The list of labels (key/value pairs) to add to set on the resource.
+       - A list of labels (key/value pairs) to add or remove for the resource.
     required: false
   resource_url:
     description:
@@ -71,7 +71,7 @@ options:
 '''
 
 EXAMPLES = '''
-- name: Set GCE Labels on an existing instance (using resource_url)
+- name: Add labels on an existing instance (using resource_url)
   gce_labels:
     service_account_email: "{{ service_account_email }}"
     credentials_file: "{{ credentials_file }}"
@@ -82,7 +82,7 @@ EXAMPLES = '''
       experiment-name: kennedy
     resource_url: https://www.googleapis.com/compute/beta/projects/myproject/zones/us-central1-f/instances/example-instance
     state: present
-- name: Set GCE Labels on an image (using resource params)
+- name: Add labels on an image (using resource params)
   gce_labels:
     service_account_email: "{{ service_account_email }}"
     credentials_file: "{{ credentials_file }}"
@@ -95,20 +95,21 @@ EXAMPLES = '''
     resource_location: global
     resource_name: my-custom-image
     state: present
-- name: Clear all labels on an GCE image
+- name: Remove specified labels from the GCE instance
   gce_labels:
     service_account_email: "{{ service_account_email }}"
     credentials_file: "{{ credentials_file }}"
     project_id: "{{ project_id }}"
-    resource_type: images
-    resource_location: global
-    resource_name: my-custom-image
+    labels:
+      environment: prod
+      experiment-name: kennedy
+    resource_url: https://www.googleapis.com/compute/beta/projects/myproject/zones/us-central1-f/instances/example-instance
     state: absent
 '''
 
 RETURN = '''
 labels:
-    description: List of labels
+    description: List of labels that exist on the resource.
     returned: Always.
     type: dict
     sample: [ { 'webserver-frontend': 'homepage', 'environment': 'test', 'environment-name': 'kennedy' } ]
@@ -151,7 +152,7 @@ from ansible.module_utils.gcp import check_params, get_google_api_client, GCPUti
 
 UA_PRODUCT = 'ansible-gce_labels'
 UA_VERSION = '0.0.1'
-GCE_API_VERSION = 'beta'  # change to 'v1' when Labels hits GA
+GCE_API_VERSION = 'v1'
 
 # TODO(all): As Labels are added to more GCE resources, this list will need to
 # be updated (along with some code changes below). The list can *only* include
@@ -159,10 +160,12 @@ GCE_API_VERSION = 'beta'  # change to 'v1' when Labels hits GA
 KNOWN_RESOURCES = ['instances', 'disks', 'snapshots', 'images']
 
 
-def _fetch_resource(client, params):
+def _fetch_resource(client, module):
+    params = module.params
     if params['resource_url']:
         if not params['resource_url'].startswith('https://www.googleapis.com/compute'):
-            raise ValueError('Invalid self_link url: %s' % params['resource_url'])
+            module.fail_json(
+                msg='Invalid self_link url: %s' % params['resource_url'])
         else:
             parts = params['resource_url'].split('/')[8:]
             if len(parts) == 2:
@@ -173,13 +176,13 @@ def _fetch_resource(client, params):
     else:
         if not params['resource_type'] or not params['resource_location'] \
                 or not params['resource_name']:
-            raise ValueError('Missing required resource params.')
+            module.fail_json(msg='Missing required resource params.')
         resource_type = params['resource_type'].lower()
         resource_name = params['resource_name'].lower()
         resource_location = params['resource_location'].lower()
 
     if resource_type not in KNOWN_RESOURCES:
-        raise ValueError('Unsupported resource_type: %s' % resource_type)
+        module.fail_json(msg='Unsupported resource_type: %s' % resource_type)
 
     # TODO(all): See the comment above for KNOWN_RESOURCES. As labels are
     # added to the v1 GCE API for more resources, some minor code work will
@@ -199,23 +202,23 @@ def _fetch_resource(client, params):
         resource = client.images().get(project=params['project_id'],
                                        image=resource_name).execute()
     else:
-        raise ValueError('Unsupported resource type: %s' % resource_type)
+        module.fail_json(msg='Unsupported resource type: %s' % resource_type)
 
-    return {
+    return resource.get('labelFingerprint', ''), {
         'resource_name': resource.get('name'),
         'resource_url': resource.get('selfLink'),
         'resource_type': resource_type,
         'resource_location': resource_location,
-        'label_fingerprint': resource.get('labelFingerprint'),
-        'labels': resource.get('labels')
+        'labels': resource.get('labels', {})
     }
 
 
-def _set_labels(client, ri, params):
+def _set_labels(client, new_labels, module, ri, fingerprint):
+    params = module.params
     result = err = None
     labels = {
-        'labels': params['labels'],
-        'labelFingerprint': ri['label_fingerprint']
+        'labels': new_labels,
+        'labelFingerprint': fingerprint
     }
 
     # TODO(all): See the comment above for KNOWN_RESOURCES. As labels are
@@ -240,7 +243,7 @@ def _set_labels(client, ri, params):
                                         resource=ri['resource_name'],
                                         body=labels)
     else:
-        raise ValueError('Unsupported resource type: %s' % ri['resource_type'])
+        module.fail_json(msg='Unsupported resource type: %s' % ri['resource_type'])
 
     # TODO(erjohnso): Once Labels goes GA, we'll be able to use the GCPUtils
     # method to poll for the async request/operation to complete before
@@ -256,18 +259,29 @@ def _set_labels(client, ri, params):
 
 
 def main():
-    module = AnsibleModule(argument_spec=dict(
-        state=dict(choices=['absent', 'present'], default='present'),
-        service_account_email=dict(),
-        service_account_permissions=dict(type='list'),
-        pem_file=dict(),
-        credentials_file=dict(),
-        labels=dict(required=False, type='dict'),
-        resource_url=dict(required=False, type='str'),
-        resource_name=dict(required=False, type='str'),
-        resource_location=dict(required=False, type='str'),
-        resource_type=dict(required=False, type='str'),
-        project_id=dict(),),)
+    module = AnsibleModule(
+        argument_spec=dict(
+            state=dict(choices=['absent', 'present'], default='present'),
+            service_account_email=dict(),
+            service_account_permissions=dict(type='list'),
+            pem_file=dict(),
+            credentials_file=dict(),
+            labels=dict(required=False, type='dict', default={}),
+            resource_url=dict(required=False, type='str'),
+            resource_name=dict(required=False, type='str'),
+            resource_location=dict(required=False, type='str'),
+            resource_type=dict(required=False, type='str'),
+            project_id=dict()
+        ),
+        required_together=[
+            ['resource_name', 'resource_location', 'resource_type']
+        ],
+        mutually_exclusive=[
+            ['resource_url', 'resource_name'],
+            ['resource_url', 'resource_location'],
+            ['resource_url', 'resource_type']
+        ]
+    )
 
     if not HAS_PYTHON26:
         module.fail_json(
@@ -278,26 +292,30 @@ def main():
                                             user_agent_version=UA_VERSION,
                                             api_version=GCE_API_VERSION)
 
-    params = {}
-    params['labels'] = module.params.get('labels', {})
-    params['resource_url'] = module.params.get('resource_url')
-    params['resource_type'] = module.params.get('resource_type')
-    params['resource_location'] = module.params.get('resource_location')
-    params['resource_name'] = module.params.get('resource_name')
-    params['project_id'] = module.params.get('project_id')
-    params['state'] = module.params.get('state')
-
     # Get current resource info including labelFingerprint
-    resource_info = _fetch_resource(client, params)
+    fingerprint, resource_info = _fetch_resource(client, module)
+    new_labels = resource_info['labels'].copy()
+
+    update_needed = False
+    if module.params['state'] == 'absent':
+        for k, v in module.params['labels'].items():
+            if k in new_labels:
+                if new_labels[k] == v:
+                    update_needed = True
+                    new_labels.pop(k, None)
+                else:
+                    module.fail_json(msg="Could not remove unmatched label pair '%s':'%s'" % (k, v))
+    else:
+        for k, v in module.params['labels'].items():
+            if k not in new_labels:
+                update_needed = True
+                new_labels[k] = v
 
     changed = False
-    json_output = {'state': params['state']}
-
-    if params['state'] == 'absent' and params['labels']:
-        raise ValueError("Cannot specify labels with 'absent'.")
-
-    changed, err = _set_labels(client, resource_info, params)
-
+    json_output = {'state': module.params['state']}
+    if update_needed:
+        changed, err = _set_labels(client, new_labels, module, resource_info,
+                                   fingerprint)
     json_output['changed'] = changed
 
     # TODO(erjohnso): probably want to re-fetch the resource to return the
@@ -307,7 +325,7 @@ def main():
     # we'll just update the output with what we have from the original
     # state of the resource.
     json_output.update(resource_info)
-    json_output.update(params)
+    json_output.update(module.params)
 
     module.exit_json(**json_output)
 
