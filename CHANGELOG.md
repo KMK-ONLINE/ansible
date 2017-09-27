@@ -7,10 +7,15 @@ Ansible Changes By Release
 
 ### Bugfixes
 
+* Security fix for CVE-2017-7550 the jenkins_plugin module was logging the jenkins
+  server password if the url_password was passed via the params field:
+  https://github.com/ansible/ansible/pull/30875
 * Update openssl\* module documentation to show openssl-0.16 is the minimum version
 * Fix openssl_certificate's csr handling
 * Python-3 fixes
   * Fix openssl_certificate parameter assertion on Python3
+  * Fix for python3 and nonascii strings in inventory plugins (https://github.com/ansible/ansible/pull/30666)
+  * Fix missing urllib in iam_policy
 * Fix for win_file to respect check mode when deleting directories
 * Fix for Ansible.ModuleUtils.Legacy.psm1 to return list params correctly
 * Fix for a proper logout in the module ovirt_vms
@@ -19,8 +24,35 @@ Ansible Changes By Release
 * Fix for Ansible.ModuleUtils.CamelConversion to handle empty lists and lists with one entry
 * Fix nxos terminal regex to parse username correctly.
 * Fix colors for selective callback
+* Fix for 'New password' prompt on 'ansible-vault edit' (https://github.com/ansible/ansible/issues/30491)
+* Fix for 'ansible-vault encrypt' with vault_password_file in config and --ask-vault-pass cli (https://github.com/ansible/ansible/pull/30514#pullrequestreview-63395903)
+* updated porting guide with notes for callbacks and config
+* Added backwards compatiblity shim for callbacks that do not inherit from CallbackBase
+* Corrected issue with configuration and multiple ini entries being overwriten even when not set.
+* backported fix for doc generation (plugin_formatter)
+* Fix ec2_lc module for an unknown parameter name (https://github.com/ansible/ansible/pull/30573)
+* Change configuration of defaults to use standard jinja2 instead of custom
+  eval() for using variables in the default field of config (https://github.com/ansible/ansible/pull/30650)
+* added missing entry in chlog deprecation
+* Fixed precedence and values for become flags and executable settings
+* Fix for win_domain_membership to throw more helpful error messages and check/fix when calling WMI function after changing workgroup
+* Fix for win_power_plan to compare the OS version's correctly and work on Windows 10/Server 2016
+* Fix module doc for typo in telnet command option
+* Fix OpenBSD pkg_mgr fact (https://github.com/ansible/ansible/issues/30623)
+* Fix encoding error when there are nonascii values in the path to the ssh binary
+* removed YAML inventory group name validation, broke existing setups and should be global in any case, and configurable
+* performance improvment for inventory, had slown down considerably from 2.3
+* Fix cpu facts on sparc64 (https://github.com/ansible/ansible/pull/30261)
+* Fix ansible_distribution fact for Arch linux (https://github.com/ansible/ansible/issues/30600)
+* remove print statements from play_context/become
+* Fix vault errors after 'ansible-vault edit' (https://github.com/ansible/ansible/issues/30575)
+* updated api doc example to match api changes
+* corrected issues with slack callback plugin
+* it is import_playbook .. not import_plays .. docs now reflect this
+* fixed typo and missed include/import conversion in import_tasks docs
+* updated porting docs with note about inventory_dir
 
-<a id="2.4"></a>
+<sdfasdfsadfsdflkjsdfklj3oiqrua id="2.4"></a>
 
 ## 2.4 "Dancing Days" - ACTIVE DEVELOPMENT
 
@@ -41,7 +73,7 @@ Ansible Changes By Release
   - New inventory plugins for creating inventory
   - Old inventory formats are still supported via plugins
   - Inline host_list is also an inventory plugin, an example alternative `advanced_host_list` is also provided (it supports ranges)
-  - New configuration option to list enabled plugins and precedence order: `whitelist_inventory` in ansible.cfg
+  - New configuration option to list enabled plugins and precedence order `[inventory]enable_plugins` in ansible.cfg
   - vars_plugins have been reworked, they are now run from Vars manager and API has changed (need docs)
   - Loading group_vars/host_vars is now a vars plugin and can be overridden
   - It is now possible to specify mulitple inventory sources in the command line (-i /etc/hosts1 -i /opt/hosts2)
@@ -68,6 +100,8 @@ Ansible Changes By Release
   moved to `ansible.utils.unsafe_proxy` to avoid a circular import.
 * The win_get_url module has the dictionary 'win_get_url' in its results deprecated,
   its content is now also available directly in the resulting output, like other modules.
+* previouslly deprecated 'hostfile' config settings have been 're-deprecated' as before the code did not warn about deprecated configuration settings
+, but it does now.
 
 #### Deprecated Modules (to be removed in 2.8):
 * azure: use M(azure_rm_virtualmachine) instead
@@ -213,10 +247,10 @@ Ansible Changes By Release
 
 ### Module Notes
 - By mistake, an early version of elb_classic_lb, elb_instance, and elb_classic_lb_facts modules
-  were released and marked as stableinterface.  These will be marked as preview in 2.4.1 and their
+  were released and marked as stableinterface.  These are now marked as preview in 2.4.1 and their
   parameters and return values may change in 2.5.0.  Part of this mistake included deprecating the
   ec2_elb_lb, ec2_lb, and ec2_elb_facts modules prematurely.  These modules won't be deprecated
-  until the replacements above have a stableinterface and the erroneous deprecation will be fixed
+  until the replacements above have a stableinterface and the erroneous deprecation has been fixed
   in 2.4.1.
 - The docker_container module has gained a new option, `working_dir` which allows
   specifying the working directory for the command being run in the image.

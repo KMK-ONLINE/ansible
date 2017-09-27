@@ -56,7 +56,10 @@ def re_matchall(regex, value):
         obj = {}
         if regex.groupindex:
             for name, index in iteritems(regex.groupindex):
-                obj[name] = match[index - 1]
+                if len(regex.groupindex) == 1:
+                    obj[name] = match
+                else:
+                    obj[name] = match[index - 1]
             objects.append(obj)
     return objects
 
@@ -84,9 +87,11 @@ def parse_cli(output, tmpl):
     for name, attrs in iteritems(spec['keys']):
         value = attrs['value']
 
-        if template.can_template(value):
+        try:
             variables = spec.get('vars', {})
             value = template(value, variables)
+        except:
+            pass
 
         if 'start_block' in attrs and 'end_block' in attrs:
             start_block = re.compile(attrs['start_block'])

@@ -586,6 +586,10 @@ def main():
 
     if module.params.get('object'):
         obj = module.params['object']
+        # If there is a top level object, do nothing - if the object starts with /
+        # remove the leading character to maintain compatibility with Ansible versions < 2.4
+        if obj.startswith('/'):
+            obj = obj[1:]
 
     # Bucket deletion does not require obj.  Prevents ambiguity with delobj.
     if obj and mode == "delete":
@@ -601,8 +605,9 @@ def main():
 
     # Look at s3_url and tweak connection settings
     # if connecting to RGW, Walrus or fakes3
-    for key in ['validate_certs', 'security_token', 'profile_name']:
-        aws_connect_kwargs.pop(key, None)
+    if s3_url:
+        for key in ['validate_certs', 'security_token', 'profile_name']:
+            aws_connect_kwargs.pop(key, None)
     try:
         s3 = get_s3_connection(module, aws_connect_kwargs, location, rgw, s3_url)
     except (botocore.exceptions.NoCredentialsError, botocore.exceptions.ProfileNotFound) as e:

@@ -495,7 +495,7 @@ DEFAULT_BECOME_EXE:
   - {key: become_exe, section: privilege_escalation}
 DEFAULT_BECOME_FLAGS:
   name: Set 'become' executable options
-  default: ~
+  default: ''
   description: Flags to pass to the privilege escalation executable.
   env: [{name: ANSIBLE_BECOME_FLAGS}]
   ini:
@@ -818,7 +818,7 @@ DEFAULT_MODULE_COMPRESSION:
 #   - name: ansible_module_compression
 DEFAULT_MODULE_LANG:
   name: Target language environment
-  default: eval(os.getenv('LANG', 'en_US.UTF-8'))
+  default: "{{CONTROLER_LANG}}"
   description: "Language locale setting to use for modules when they execute on the target, if empty it defaults to 'en_US.UTF-8'"
   env: [{name: ANSIBLE_MODULE_LANG}]
   ini:
@@ -1096,7 +1096,7 @@ DEFAULT_SU_EXE:
   - {key: su_exe, section: defaults}
 DEFAULT_SU_FLAGS:
   name: su flags
-  default: ~
+  default: ''
   deprecated:
     why: In favor of become which is a generic framework
     version: "2.8"
@@ -1350,7 +1350,7 @@ INVENTORY_ENABLED:
   type: list
 INVENTORY_IGNORE_EXTS:
   name: Inventory ignore extensions
-  default: eval(BLACKLIST_EXTS + ( '~', '.orig', '.ini', '.cfg', '.retry'))
+  default: "{{(BLACKLIST_EXTS + ( '~', '.orig', '.ini', '.cfg', '.retry'))}}"
   description: List of extensions to ignore when using a directory as an inventory source
   env: [{name: ANSIBLE_INVENTORY_IGNORE}]
   ini:
