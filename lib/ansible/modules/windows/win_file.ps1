@@ -61,7 +61,7 @@ function Remove-File($file, $checkmode) {
                 [Ansible.Command.SymLinkHelper]::DeleteSymLink($file.FullName)
             }
         } elseif ($file.PSIsContainer) {
-            Remove-Directory -directory $file -WhatIf:$checkmode
+            Remove-Directory -directory $file -checkmode $checkmode
         } else {
             Remove-Item -Path $file.FullName -Force -WhatIf:$checkmode
         }
@@ -70,11 +70,11 @@ function Remove-File($file, $checkmode) {
     }
 }
 
-function Remove-Directory($directory) {
+function Remove-Directory($directory, $checkmode) {
     foreach ($file in Get-ChildItem $directory.FullName) {
-        Remove-File -file $file
+        Remove-File -file $file -checkmode $checkmode
     }
-    Remove-Item -Path $directory.FullName -Force -Recurse
+    Remove-Item -Path $directory.FullName -Force -Recurse -WhatIf:$checkmode
 }
 
 
@@ -87,10 +87,10 @@ if ($state -eq "touch") {
     }
 }
 
-if (Test-Path $path) {
+if (Test-Path -Path $path) {
     $fileinfo = Get-Item -Path $path
     if ($state -eq "absent") {
-        Remove-File -File $fileinfo -CheckMode $check_mode
+        Remove-File -file $fileinfo -checkmode $check_mode
         $result.changed = $true
     } else {
         if ($state -eq "directory" -and -not $fileinfo.PsIsContainer) {

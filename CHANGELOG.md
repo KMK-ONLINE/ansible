@@ -6,6 +6,9 @@ Ansible Changes By Release
 ## 2.3.3 "Ramble On" - TBD
 
 ### Bugfixes
+* Security fix for CVE-2017-7550 the jenkins_plugin module was logging the jenkins
+  server password if the url_password was passed via the params field:
+  https://github.com/ansible/ansible/pull/30875
 * Fix alternatives module handlling of non existing options
 * Fix synchronize traceback with the docker connection plugin
 * Do not escape backslashes in the template lookup plugin to mirror what the template module does
@@ -45,6 +48,12 @@ Ansible Changes By Release
 * Better message for invalid keywords/options in task due to undefined expressions
 * Fixed check mode for enable on Solaris for service module
 * Fix cloudtrail module to allow AWS profiles other than the default
+* Fix an encoding issue with secret (password) vars_prompts
+* Fix for Windows become to show the stdout and stderr strings on a failure 
+* Fix the issue SSL verification can not be disabled for Tower modules
+* Use safe_load instead on load to read a yaml document
+* Fix for win_file to respect check mode when deleting directories
+
 
 <a id="2.3.2"></a>
 
