@@ -3,7 +3,7 @@ Ansible Changes By Release
 
 <a id="2.4.1"></a>
 
-## 2.4.1 "Dancing Dats" - TBD
+## 2.4.1 "Dancing Days" - TBD
 
 ### Bugfixes
 
@@ -16,6 +16,11 @@ Ansible Changes By Release
   * Fix openssl_certificate parameter assertion on Python3
   * Fix for python3 and nonascii strings in inventory plugins (https://github.com/ansible/ansible/pull/30666)
   * Fix missing urllib in iam_policy
+  * Fix crypttab module for bytes<=>text string mismatch ( https://github.com/ansible/ansible/pull/30457 )
+  * Fix lxc_container module combining bytes with text ( https://github.com/ansible/ansible/pull/30572 )
+  * Fix map doesn't return a list on python3 in ec2_snapshot_facts module (https://github.com/ansible/ansible/pull/30606)
+  * Fix uri (and other url retrieving) modules when used with a proxy. (https://github.com/ansible/ansible/issues/31109)
+  * Fix azure_rm dynamic inventory script ConfigParser usage.
 * Fix for win_file to respect check mode when deleting directories
 * Fix for Ansible.ModuleUtils.Legacy.psm1 to return list params correctly
 * Fix for a proper logout in the module ovirt_vms
@@ -51,10 +56,60 @@ Ansible Changes By Release
 * it is import_playbook .. not import_plays .. docs now reflect this
 * fixed typo and missed include/import conversion in import_tasks docs
 * updated porting docs with note about inventory_dir
+* removed extension requirement for yaml inventory plugin to restore previous behaviour
+* fixed ansible-pull to now correctly deal with inventory
+* corrected dig lookup docs
+* fix type handling for sensu_silence so the module works
+* added fix for win_iis_webapppool to correctly handle array elements
+* Fix bugs caused by lack of collector ordering like service_mgr being incorrect (https://github.com/ansible/ansible/issues/30753)
+* Fix os_image when the id parameter is not set in the task. ( https://github.com/ansible/ansible/pull/29147 )
+* Fix for the winrm connection to use proper task vars
+* removed typo from dig lookup docs
+* Updated win_chocolatey example to be clearer around what should be used with become
+* Fix for copy module when permissions are changed but the file contents are not ( https://github.com/ansible/ansible/issues/30556 )
+* corrected YAML_FILENAME_EXTENSIONS ini setter as key/section were swapped
+* Better error message when a yaml inventory is invalid
+* avoid include_Xs conflating vars with options
+* Fix aws_s3 module handling `encrypt` option (https://github.com/ansible/ansible/pull/31203)
+* Fix for win_msg to document and show error when message is greater than 255 characters
+* Fix for win_dotnet_ngen to work after recent regression
+* fixed backwards compat method for config
+* removed docs for prematurely added ssh specific pipelining settings
+* fixed redis cache typo
+* Fix AttributeError during inventory group deserialization (https://github.com/ansible/ansible/issues/30903)
+* Fix 'ansible-vault encrypt --output=-' (https://github.com/ansible/ansible/issues/30550)
+* restore pre 2.4 pipeline configuration options (env and ini)
+* Fix win_copy regression: handling of vault-encrypted source files (https://github.com/ansible/ansible/pull/31084)
+* Updated return values for win_reg_stat to correctly show what is being returned (https://github.com/ansible/ansible/pull/31252)
+* reduced normal error redundancy and verbosity, display on increased and when needed
+* Give an informative error instead of a traceback if include_vars dir is file instead of directory (https://github.com/ansible/ansible/pull/31157)
+* Fix monit module's version check for color support (https://github.com/ansible/ansible/pull/31212)
+* Max `elasticsearch_plugin` module work with both 2.x and 5.x (https://github.com/ansible/ansible/issues/21989)
+* Fix for become on Windows to handle ignored errors (https://github.com/ansible/ansible/issues/30468)
+* Fix removal of newlines when writing SELinux config (https://github.com/ansible/ansible/issues/30618)
+* clarified extension requirement for constructed inv plugin
+* really turn off inventory caching, toggle will be added in 2.5
+* for inventory sources, dont follow symlinks to calculate base directory, used for group/host_vars
+* Port the uptime.py example script to the new inventory API.
+* inventory_file variable again returns full path, not just basename
+* added info about cwd group/host vars to porting guide
+* Fix name parsing out of envra in the yum module
+* give user friendly error on badly formatted yaml inventory source
+* Fix any_errors_fatal setting in playbooks.
+* Fix setting of ssh-extra-args from the cli (https://github.com/ansible/ansible/pull/31326)
+* Change SELinux fact behavior to always return a dictionary. (https://github.com/ansible/ansible/issues/18692)
+* Revert a fix for using non /bin/sh shells for modules' running commands as
+  this was causing output from commands to change, thus breaking playbooks.
+  See the original bug for details and links to the eventual fix:
+  https://github.com/ansible/ansible/issues/24169
+* Do not log data field in `docker_secrets` module (https://github.com/ansible/ansible/pull/31366)
+* Fix rpm_key taking the wrong 8 chars from the keyid (https://github.com/ansible/ansible/pull/31045)
+* chown errors now more informative
+* Fix for win_copy to copy a source file that has invalid windows characters in the filename, the dest still must be have valid windows characters (https://github.com/ansible/ansible/issues/31336#issuecomment-334649927)
 
-<sdfasdfsadfsdflkjsdfklj3oiqrua id="2.4"></a>
+<a id="2.4"></a>
 
-## 2.4 "Dancing Days" - ACTIVE DEVELOPMENT
+## 2.4 "Dancing Days" - 2017-09-19
 
 ### Major Changes
 

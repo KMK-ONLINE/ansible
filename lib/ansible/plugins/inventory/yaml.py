@@ -49,7 +49,6 @@ all: # keys must be unique, i.e. only one 'hosts' per group
                 last_var: MYVALUE
 '''
 
-import re
 import os
 from collections import MutableMapping
 
@@ -74,7 +73,7 @@ class InventoryModule(BaseFileInventoryPlugin):
         valid = False
         if super(InventoryModule, self).verify_file(path):
             file_name, ext = os.path.splitext(path)
-            if ext and ext in C.YAML_FILENAME_EXTENSIONS:
+            if not ext or ext in C.YAML_FILENAME_EXTENSIONS:
                 valid = True
         return valid
 
@@ -106,8 +105,14 @@ class InventoryModule(BaseFileInventoryPlugin):
         if isinstance(group_data, MutableMapping):
             # make sure they are dicts
             for section in ['vars', 'children', 'hosts']:
-                if section in group_data and isinstance(group_data[section], string_types):
-                    group_data[section] = {group_data[section]: None}
+                if section in group_data:
+                    # convert strings to dicts as these are allowed
+                    if isinstance(group_data[section], string_types):
+                        group_data[section] = {group_data[section]: None}
+
+                    if not isinstance(group_data[section], MutableMapping):
+                        raise AnsibleParserError('Invalid %s entry for %s group, requires a dictionary, found %s instead.' %
+                                                 (section, group, type(group_data[section])))
 
             if group_data.get('vars', False):
                 for var in group_data['vars']:
