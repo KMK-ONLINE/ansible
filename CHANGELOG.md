@@ -106,6 +106,16 @@ Ansible Changes By Release
 * Fix rpm_key taking the wrong 8 chars from the keyid (https://github.com/ansible/ansible/pull/31045)
 * chown errors now more informative
 * Fix for win_copy to copy a source file that has invalid windows characters in the filename, the dest still must be have valid windows characters (https://github.com/ansible/ansible/issues/31336#issuecomment-334649927)
+* Fix systemd module to not run daemon-reload in check mode.
+* fixed some parsing and selection issues with inventory manager, fixed minor bugs in yaml and constructed plugins
+* reverted implicit localhost getting vars from 'all' group
+* Fix the ping module documentation to reference win_ping instead of itself: https://github.com/ansible/ansible/pull/31444
+* Fix for ec2_win_password to allow blank key_passphrase again (https://github.com/ansible/ansible/pull/28791)
+* added toggle for vars_plugin behaviour to execute relative to playbook, set default to revert to previous way.
+* Fix for win_copy to not remove destination file on change when in check mode (https://github.com/ansible/ansible/pull/31469)
+* Fix include_role usage of role_name (https://github.com/ansible/ansible/pull/31463)
+* Fix service and package forcing a second run of the setup module to function (https://github.com/ansible/ansible/issues/31485)
+* Better error message when attempting to use include or import with /usr/bin/ansible (https://github.com/ansible/ansible/pull/31492/)
 
 <a id="2.4"></a>
 
