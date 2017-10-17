@@ -123,6 +123,14 @@ Ansible Changes By Release
 * Fix for aws_s3 metadata to use the correct parameters when uploading a file (https://github.com/ansible/ansible/issues/31232)
 * Fix for the yum module when installing from file/url crashes (https://github.com/ansible/ansible/pull/31529)
 * Improved error messaging for Windows become/runas when username is bogus (https://github.com/ansible/ansible/pull/31551)
+* Fix rollback feature in junos_config to now allow configuration rollback on device (https://github.com/ansible/ansible/pull/31424)
+* Remove command executed log from ansible-connection (https://github.com/ansible/ansible/pull/31581)
+* Fix relative paths to be relative to config file when there is no playbook available (https://github.com/ansible/ansible/issues/31533)
+* Fix Inventory plugins to use the configured inventory plugin path (https://github.com/ansible/ansible/issues/31605)
+* Fix include task to be dynamic (https://github.com/ansible/ansible/issues/31593)
+* A couple fixes to the test process to account for new testing resources in
+  our ci system and an upstream cryptography update that didn't work with
+  pip-8.x
 
 <a id="2.4"></a>
 
