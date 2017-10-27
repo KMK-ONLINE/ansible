@@ -1,9 +1,94 @@
 Ansible Changes By Release
 ==========================
 
+<a id="2.4.2"></a>
+
+## 2.4.2 "Dancing Days" - TBD
+
+### Bugfixes
+
+* Fix formatting typo in panos_security_rule.py docs. (https://github.com/ansible/ansible/commit/c0fc797a06451d2fe1ac4fc077fc64f3a1666447)
+* Fix rpm spec file to build on RHEL6 without EPEL packages (https://github.com/ansible/ansible/pull/31653)
+* Keep hosts in play vars if inside of a rescue task (https://github.com/ansible/ansible/pull/31710)
+* Fix wait_for module to treat broken connections as unready so that the connection continues to be retried:
+  https://github.com/ansible/ansible/pull/28839
+* Python3 fixes:
+  * windows_azure, clc_firewall_policy, and ce_template modules fixed for
+    imports of urllib which changed between Python2 and Python3 lookup plugin
+    for consul_kv.py fixed for imports of urllib
+    (https://github.com/ansible/ansible/issues/31240)
+  * Make internal hashing of hostvars use bytes on both python2 and python3
+    (https://github.com/ansible/ansible/pull/31788)
+* Fix logging inside of KubernetesAnsibleModule() to not use
+  self.helper.logging.  the Ansible builtin log() method will strip out
+  parameters marked no_log and will not log if no_log was set in the playbook.
+  self.helper.log() circumvents that (https://github.com/ansible/ansible/pull/31789)
+* Correct task results display so that it more closely matches what was present
+  in 2.3.x and previous.
+* Warn when a group has a bad key (Should be one of vars, children, or hosts)
+  https://github.com/ansible/ansible/pull/31495
+* Use controller configured ansible_shell_executable to run commands in the module
+  (https://github.com/ansible/ansible/pull/31361)
+* Add documentation about writing unittests for Ansible
+* Fix bugs in get_url/uri's SNI and TLS version handling when used on systems
+  that have Python-2.7.9+ and urllib3 installed.
+* Have ansible-pull process inventory in its own way.  Fixes issues with
+  ansible-pull not using the correct inventory,  especially for localhost
+  (https://github.com/ansible/ansible/pull/32135)
+* Fix for implicit localhost receiving too many variables from the all group
+  (https://github.com/ansible/ansible/pull/31959)
+* Fix the service module to correctly detect which type of init system is
+  present on the host. (https://github.com/ansible/ansible/pull/32086)
+* Fix inventory patterns to convert to strings before processing:
+  (https://github.com/ansible/ansible/issues/31978)
+* Fix traceback in firewalld module instead of a nice error message:
+  (https://github.com/ansible/ansible/pull/31949)
+* Fix for entering privileged mode using eos network modules:
+  (https://github.com/ansible/ansible/issues/30802)
+* Validate that the destination for ansible-pull is a valid.directory:
+  (https://github.com/ansible/ansible/pull/31499)
+* Document how to preserve strings of digits as strings in the ini inventory:
+  (https://github.com/ansible/ansible/pull/32047)
+* Make sure we return ansible_distribution_major_version to macOS:
+  (https://github.com/ansible/ansible/pull/31708)
+* Fix to ansible-doc -l to list custom inventory plugins:
+  (https://github.com/ansible/ansible/pull/31996)
+* Fix win_chocolatey to respect case sensitivity in URLs:
+  (https://github.com/ansible/ansible/pull/31983)
+* Fix config_format json in the junos_facts module:
+  (https://github.com/ansible/ansible/pull/31818)
+* Allow the apt module's autoremove parameter to take effect in upgrades:
+  (https://github.com/ansible/ansible/pull/30747)
+* When creating a new use via eos_user, create the user before setting the
+  user's privilege level: (https://github.com/ansible/ansible/pull/32162)
+* Fixes nxos_portchannel idempotence failure on N1 images:
+  (https://github.com/ansible/ansible/pull/31057)
+* Remove provider from prepare_ios_tests integration test:
+  (https://github.com/ansible/ansible/pull/31038)
+* Fix nxos_acl change ports to non well known ports and drop time_range for N1:
+  (https://github.com/ansible/ansible/pull/31261)
+* Fix nxos_banner removal idempotence issue in N1 images:
+  (https://github.com/ansible/ansible/pull/31259)
+* Return error message back to the module
+  (https://github.com/ansible/ansible/pull/31035)
+* Fix nxos_igmp_snooping idempotence:
+  (https://github.com/ansible/ansible/pull/31688)
+* NXOS integration test nxos_file_copy, nxos_igmp, nxos_igmp_interface
+  nxos_igmp_snooping, nxos_ntp_auth, nxos_ntp_options:
+  (https://github.com/ansible/ansible/pull/29030)
+* Fix elb_target_group module traceback when ports were specified inside of the targets parameter:
+  (https://github.com/ansible/ansible/pull/32202)
+* Fix creation of empty virtual directories in aws_s3 module:
+  (https://github.com/ansible/ansible/pull/32169)
+* Enable echo for `pause` module: (https://github.com/ansible/ansible/issues/14160)
+* Fix for `hashi_vault` lookup to return all keys at a given path when no key is specified (https://github.com/ansible/ansible/pull/32182)
+* Fix for `win_package` to allow TLS 1.1 and 1.2 on web requests:
+  (https://github.com/ansible/ansible/pull/32184)
+
+
 <a id="2.4.1"></a>
 
-## 2.4.1 "Dancing Days" - TBD
+## 2.4.1 "Dancing Days" - 2017-10-25
 
 ### Bugfixes
 
