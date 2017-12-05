@@ -3,7 +3,7 @@ Ansible Changes By Release
 
 <a id="2.4.2"></a>
 
-## 2.4.2 "Dancing Days" - TBD
+## 2.4.2 "Dancing Days" - 2017-11-29
 
 ### Bugfixes
 
@@ -174,6 +174,27 @@ Ansible Changes By Release
   (https://github.com/ansible/ansible/issues/30993)
 * Fix for IIS windows modules to use hashtables instead of PSCustomObject
   (https://github.com/ansible/ansible/pull/32710)
+* Fix nxos_snmp_host bug
+  (https://github.com/ansible/ansible/pull/32916)
+* Make IOS devices consistent ios_logging
+  (https://github.com/ansible/ansible/pull/33100)
+* restore error on orphan group:vars delcaration for ini inventories
+  https://github.com/ansible/ansible/pull/32866
+* restore host/group_vars merge order
+  https://github.com/ansible/ansible/pull/32963
+* use correct loop var when delegating
+  https://github.com/ansible/ansible/pull/32986
+* Handle sets and datetime objects in inventory sources fixing tracebacks
+  https://github.com/ansible/ansible/pull/32990
+* Fix for breaking change to Azure Python SDK DNS RecordSet constructor in azure-mgmt-dns==1.2.0
+  https://github.com/ansible/ansible/pull/33165
+* Fix for breaking change to Azure Python SDK that prevented some members from being returned in facts modules
+  https://github.com/ansible/ansible/pull/33169
+* restored glob/regex host pattern matching to traverse groups and hosts and not return after first found
+  https://github.com/ansible/ansible/pull/33158
+* change nxos_interface module to use "show interface" to support more platforms
+  https://github.com/ansible/ansible/pull/33037
+
 
 <a id="2.4.1"></a>
 
@@ -315,6 +336,7 @@ Ansible Changes By Release
 * Fix for hostname module on RHEL 7.5 (https://github.com/ansible/ansible/issues/31811)
 * Fix provider password leak in logs for asa modules (https://github.com/ansible/ansible/issues/32343)
 * Fix tagging for dynamodb_table if region is not explicitly passed to the module (https://github.com/ansible/ansible/pull/32557)
+* Fix Python 3 decode error in `cloudflare_dns` (https://github.com/ansible/ansible/pull/32065)
 
 ### Known Bugs
 * Implicit localhost is getting ansible_connection from all:vars instead of
@@ -399,7 +421,7 @@ Ansible Changes By Release
 * Now deprecated configuration options issue warnings when set.
 * Removed unused and deprecated config option `pattern`
 * Updated the copy of six bundled for modules to use from 1.4.1 to 1.10.0
-* The `include_dir` var is not a global anymore, as we now allow multiple inventory sources, it is now host dependant.
+* The `inventory_dir` var is not a global anymore, as we now allow multiple inventory sources, it is now host dependant.
   This means it cannot be used wherever host vars are not permitted, for example in task/handler names.
 * Fixed a cornercase with ini inventory vars.  Previously, if an inventory var
   was a quoted string with hash marks ("#") in it then the parsed string
