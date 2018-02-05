@@ -127,6 +127,12 @@ options:
         required: false
         default: null
         version_added: "2.5"
+    include_tags:
+        description: ["Add triggering tags in notification title"]
+        required: false
+        default: false
+        version_added: "2.4"
+
 '''
 
 EXAMPLES = '''
@@ -199,6 +205,7 @@ def main():
             new_host_delay=dict(required=False, default=None),
             id=dict(required=False),
             evaluation_delay=dict(required=False, default=None)
+            include_tags=dict(required=False, default=False, type='bool')
         )
     )
 
@@ -305,6 +312,7 @@ def install_monitor(module):
         "evaluation_delay": module.params['evaluation_delay'],
         "require_full_window": module.params['require_full_window'],
         "new_host_delay": module.params['new_host_delay']
+        "include_tags": module.boolean(module.params['include_tags'])
     }
 
     if module.params['type'] == "service check":
