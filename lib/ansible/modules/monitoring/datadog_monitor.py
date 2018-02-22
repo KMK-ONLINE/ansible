@@ -204,7 +204,7 @@ def main():
             require_full_window=dict(required=False, default=None, type='bool'),
             new_host_delay=dict(required=False, default=None),
             id=dict(required=False),
-            evaluation_delay=dict(required=False, default=None)
+            evaluation_delay=dict(required=False, default=None),
             include_tags=dict(required=False, default=False, type='bool')
         )
     )
@@ -311,7 +311,7 @@ def install_monitor(module):
         "locked": module.boolean(module.params['locked']),
         "evaluation_delay": module.params['evaluation_delay'],
         "require_full_window": module.params['require_full_window'],
-        "new_host_delay": module.params['new_host_delay']
+        "new_host_delay": module.params['new_host_delay'],
         "include_tags": module.boolean(module.params['include_tags'])
     }
 
