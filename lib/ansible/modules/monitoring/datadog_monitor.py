@@ -201,7 +201,7 @@ def main():
             thresholds=dict(required=False, type='dict', default=None),
             tags=dict(required=False, type='list', default=None),
             locked=dict(required=False, default=False, type='bool'),
-            require_full_window=dict(required=False, default=None, type='bool'),
+            require_full_window=dict(required=False, default=False, type='bool'),
             new_host_delay=dict(required=False, default=None),
             id=dict(required=False),
             evaluation_delay=dict(required=False, default=None),
