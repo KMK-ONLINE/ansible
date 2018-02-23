@@ -45,7 +45,7 @@ options:
             - The 'event alert'is available starting at Ansible 2.1
         required: false
         default: null
-        choices: ['metric alert', 'service check', 'event alert']
+        choices: ['metric alert', 'service check', 'event alert', 'composite']
     query:
         description: ["The monitor query to notify on with syntax varying depending on what type of monitor you are creating."]
         required: false
@@ -132,6 +132,14 @@ options:
         required: false
         default: false
         version_added: "2.4"
+    composite_monitor_tag:
+        description: ["List of Monitor_tags To use for Composite Monitor type"]
+        required: false
+        default: null
+    composite_operator:
+        description: ["List of operators, such as : &&, || to use in combinationwith composite_monitor_tag for Composite monitor type"]
+        required: false
+        default: false
 
 '''
 
@@ -145,6 +153,57 @@ datadog_monitor:
   message: "Host [[host.name]] with IP [[host.ip]] is failing to report to datadog."
   api_key: "9775a026f1ca7d1c6c5af9d94d9595a4"
   app_key: "87ce4a24b5553d2e482ea8a8500e71b8ad4554ff"
+
+## Create a composite monitor 
+##example desired composite monitor : monitor-a && monitor-b
+datadog_monitor:
+  type: "composite"
+  name: "Test monitor"
+  state: "present"
+  message: "Composite Alert is Triggered."
+  api_key: "9775a026f1ca7d1c6c5af9d94d9595a4"
+  app_key: "87ce4a24b5553d2e482ea8a8500e71b8ad4554ff"
+  tags: "composite"
+  composite_monitor_tag: "monitor-a,monitor-b"
+  composite_operator: "&&"
+
+##example desired composite monitor : monitor-a && (monitor-b || monitor-c)
+datadog_monitor:
+  type: "composite"
+  name: "Test monitor"
+  state: "present"
+  message: "Composite Alert is Triggered."
+  api_key: "9775a026f1ca7d1c6c5af9d94d9595a4"
+  app_key: "87ce4a24b5553d2e482ea8a8500e71b8ad4554ff"
+  tags: "composite"
+  composite_monitor_tag: "monitor-a,monitor-b,monitor-c"
+  composite_operator: "&&(,||,)"
+
+##example desired composite monitor : (monitor-a && (monitor-b || monitor-c))
+datadog_monitor:
+  type: "composite"
+  name: "Test monitor"
+  state: "present"
+  message: "Composite Alert is Triggered."
+  api_key: "9775a026f1ca7d1c6c5af9d94d9595a4"
+  app_key: "87ce4a24b5553d2e482ea8a8500e71b8ad4554ff"
+  tags: "composite"
+  composite_monitor_tag: "monitor-a,monitor-b,monitor-c"
+  composite_operator: "(,&&(,||,))"
+
+##example desired composite monitor : (monitor-a || monitor-c) && (monitor-b || monitor-c)
+datadog_monitor:
+  type: "composite"
+  name: "Test monitor"
+  state: "present"
+  message: "Composite Alert is Triggered."
+  api_key: "9775a026f1ca7d1c6c5af9d94d9595a4"
+  app_key: "87ce4a24b5553d2e482ea8a8500e71b8ad4554ff"
+  tags: "composite"
+  composite_monitor_tag: "monitor-a,monitor-c,monitor-b,monitor-c"
+  composite_operator: "(,||,)&&(,||,)"
+
+##Create Composite Monitor Section End
 
 # Deletes a monitor
 datadog_monitor:
@@ -187,7 +246,7 @@ def main():
             api_key=dict(required=True, no_log=True),
             app_key=dict(required=True, no_log=True),
             state=dict(required=True, choises=['present', 'absent', 'mute', 'unmute']),
-            type=dict(required=False, choises=['metric alert', 'service check', 'event alert']),
+            type=dict(required=False, choises=['metric alert', 'service check', 'event alert', 'composite']),
             name=dict(required=True),
             query=dict(required=False),
             message=dict(required=False, default=None),
@@ -205,7 +264,9 @@ def main():
             new_host_delay=dict(required=False, default=None),
             id=dict(required=False),
             evaluation_delay=dict(required=False, default=None),
-            include_tags=dict(required=False, default=False, type='bool')
+            include_tags=dict(required=False, default=True, type='bool'),
+            composite_monitor_tag=dict(required=False, default=None, type='list'),
+            composite_operator=dict(required=False, default=None, type='list'),
         )
     )
 
@@ -319,12 +380,38 @@ def install_monitor(module):
         options["thresholds"] = module.params['thresholds'] or {'ok': 1, 'critical': 1, 'warning': 1}
     if module.params['type'] == "metric alert" and module.params['thresholds'] is not None:
         options["thresholds"] = module.params['thresholds']
+    if module.params['type'] == "composite":
+        module.params["query"] = install_composite_monitor(module)
 
     monitor = _get_monitor(module)
     if not monitor:
         _post_monitor(module, options)
     else:
         _update_monitor(module, monitor, options)
+
+
+def install_composite_monitor(module):
+    composite_monitor_tag = module.params['composite_monitor_tag']
+    composite_operator = module.params['composite_operator']
+    i = 0
+    query = ""
+    if not composite_monitor_tag:
+        module.fail_json(msg="Composite_monitor_tag is not found")
+    elif not composite_operator:
+        module.fail_json(msg="composite_operator is not found")
+    for tags in composite_monitor_tag:
+        monitors = api.Monitor.get_all(monitor_tags=tags)
+        for monitor in monitors:
+            if "(" in str(composite_operator[i]) and i == 0:
+                query += composite_operator[i] + " "
+                i += 1
+            query += str(monitor['id']) + " "
+            try:
+                query += composite_operator[i] + " "
+            except:
+                pass
+        i += 1
+    return query
 
 
 def delete_monitor(module):
