@@ -339,22 +339,42 @@ class MavenDownloader:
             return f(response)
 
     def download(self, artifact, filename=None):
+        """Download the artifact from maven repository
+
+        Args:
+            artifact: the artifact to download
+            filename: the filename to save to, one will be generated if not set
+        Returns:
+            True if artifact is downloaded and passes checksum
+            False if artifact already exists and passes checksum
+        Raises:
+            ValueError: if fails to download checksum
+            ValueError: if fails to download artifact
+            ValueError: if the downloaded artifact fails checksum
+        """
         filename = artifact.get_filename(filename)
         if not artifact.version or artifact.version == "latest":
             artifact = Artifact(artifact.group_id, artifact.artifact_id, self.find_latest_version_available(artifact),
                                 artifact.classifier, artifact.extension)
 
         url = self.find_uri_for_artifact(artifact)
-        result = True
-        if not self.verify_md5(filename, url + ".md5"):
+
+        remote_md5 = self.download_md5(url + ".md5")
+        existing_file_passes_checksum = self.verify_md5(filename, remote_md5)
+
+        if existing_file_passes_checksum:
+            return False
+        else:
             response = self._request(url, "Failed to download artifact " + str(artifact), lambda r: r)
-            if response:
-                f = open(filename, 'wb')
-                self._write_chunks(response, f, report_hook=self.chunk_report)
-                f.close()
+            f = open(filename, 'w')
+            # f.write(response.read())
+            self._write_chunks(response, f, report_hook=self.chunk_report)
+            f.close()
+            downloaded_file_passes_checksum = self.verify_md5(filename, remote_md5)
+            if downloaded_file_passes_checksum:
+                return True
             else:
-                result = False
-        return result
+                raise ValueError("Failed to verify checksum of downloaded artifact")
 
     def chunk_report(self, bytes_so_far, chunk_size, total_size):
         percent = float(bytes_so_far) / total_size
@@ -383,13 +403,14 @@ class MavenDownloader:
 
         return bytes_so_far
 
+    def download_md5(self, remote_file):
+        return self._request(remote_file, "Failed to download MD5", lambda r: r.read())
+
     def verify_md5(self, file, remote_md5):
         result = False
         if os.path.exists(file):
             local_md5 = self._local_md5(file)
-            remote = self._request(remote_md5, "Failed to download MD5", lambda r: r.read())
-            result = local_md5 == remote
-        return result
+            return local_md5 == remote_md5
 
     def _local_md5(self, file):
         md5 = hashlib.md5()
@@ -455,7 +476,6 @@ def main():
         module.fail_json(msg=e.args[0])
 
     changed = False
-    prev_state = "absent"
 
     if dest.endswith(os.sep):
         b_dest = to_bytes(dest, errors='surrogate_or_strict')
@@ -481,17 +501,10 @@ def main():
             dest = posixpath.join(dest, "%s-%s.%s" % (artifact_id, version_part, extension))
         b_dest = to_bytes(dest, errors='surrogate_or_strict')
 
-    if os.path.lexists(b_dest) and downloader.verify_md5(dest, downloader.find_uri_for_artifact(artifact) + '.md5'):
-        prev_state = "present"
-
-    if prev_state == "absent":
-        try:
-            if downloader.download(artifact, b_dest):
-                changed = True
-            else:
-                module.fail_json(msg="Unable to download the artifact")
-        except ValueError as e:
-            module.fail_json(msg=e.args[0])
+    try:
+        changed = downloader.download(artifact, b_dest)
+    except ValueError as e:
+        module.fail_json(msg=e.args[0])
 
     module.params['dest'] = dest
     file_args = module.load_file_common_arguments(module.params)
