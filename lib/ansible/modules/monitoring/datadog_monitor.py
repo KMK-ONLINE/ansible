@@ -402,9 +402,10 @@ def install_composite_monitor(module):
     for tags in composite_monitor_tag:
         monitors = api.Monitor.get_all(monitor_tags=tags)
         for monitor in monitors:
-            if "(" in str(composite_operator[i]) and i == 0:
-                query += composite_operator[i] + " "
-                i += 1
+            if i == 0:
+                if "(" in str(composite_operator[i]):
+                    query += composite_operator[i] + " "
+                    i += 1
             query += str(monitor['id']) + " "
             try:
                 query += composite_operator[i] + " "
